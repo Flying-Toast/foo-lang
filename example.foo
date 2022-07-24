@@ -1,0 +1,5 @@
+begin {
+	var thingy = 4;
+	thingy = 5;
+	var foo = 6 + thingy;
+}

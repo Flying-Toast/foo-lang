@@ -1,7 +1,10 @@
-mod lexer;
+mod lex;
+mod ast;
+mod interp;
 
 fn main() {
-    for t in lexer::lex_tokens(include_str!("../example.foo")) {
-        println!("{:?}", t);
+    let tokens = lex::lex_tokens(include_str!("../example.foo"));
+    for i in ast::parse_items(tokens) {
+        println!("{i:#?}");
     }
 }

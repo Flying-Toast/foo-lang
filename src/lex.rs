@@ -10,7 +10,7 @@ pub enum Token<'a> {
     LeftParen,
     RightParen,
     Plus,
-    Newline,
+    Semicolon,
 }
 
 pub fn lex_tokens(src: &str) -> impl Iterator<Item=Token> {
@@ -51,7 +51,7 @@ impl<'a> TokenStream<'a> {
     }
 
     fn consume_whitespace(&mut self) {
-        self.eat_while(|ch| ch == '\t' || ch == ' ');
+        self.eat_while(|ch| ch.is_ascii_whitespace());
     }
 
     fn lex_bareword(&mut self) -> Option<Token<'a>> {
@@ -78,6 +78,7 @@ impl<'a> TokenStream<'a> {
             '(' => Token::LeftParen,
             ')' => Token::RightParen,
             '+' => Token::Plus,
+            ';' => Token::Semicolon,
             _ => return None,
         };
 
@@ -85,14 +86,6 @@ impl<'a> TokenStream<'a> {
         Some(tkn)
     }
 
-    fn lex_newline(&mut self) -> Option<Token<'a>> {
-        if self.peek()? == '\n' {
-            self.idx += 1;
-            Some(Token::Newline)
-        } else {
-            None
-        }
-    }
 }
 
 impl<'a> Iterator for TokenStream<'a> {
@@ -105,7 +98,6 @@ impl<'a> Iterator for TokenStream<'a> {
             TokenStream::lex_bareword,
             TokenStream::lex_onechar_symbol,
             TokenStream::lex_integer,
-            TokenStream::lex_newline,
         ];
 
         if self.eof() {

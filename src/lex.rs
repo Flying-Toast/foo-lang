@@ -11,6 +11,9 @@ pub enum Token<'a> {
     RightParen,
     Plus,
     Semicolon,
+    Comma,
+    Return,
+    Func,
 }
 
 pub fn lex_tokens(src: &str) -> impl Iterator<Item=Token> {
@@ -61,6 +64,8 @@ impl<'a> TokenStream<'a> {
             match word {
                 "begin" => Token::Begin,
                 "var" => Token::Var,
+                "return" => Token::Return,
+                "func" => Token::Func,
                 _ => Token::Ident(word),
             }
         )
@@ -79,6 +84,7 @@ impl<'a> TokenStream<'a> {
             ')' => Token::RightParen,
             '+' => Token::Plus,
             ';' => Token::Semicolon,
+            ',' => Token::Comma,
             _ => return None,
         };
 

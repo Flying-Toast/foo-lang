@@ -9,9 +9,40 @@ struct ItemStream<'a, T: Iterator<Item=Token<'a>>> {
 }
 
 impl<'a, T: Iterator<Item=Token<'a>>> ItemStream<'a, T> {
+    /// Parse the parenthesized args of a function call
+    fn parse_call(&mut self) -> Vec<Expr<'a>> {
+        assert!(matches!(self.tokens.next(), Some(Token::LeftParen)));
+
+        if let Some(Token::RightParen) = self.tokens.peek() {
+            self.tokens.next();
+            // empty params list
+            Vec::new()
+        } else {
+            let mut args = Vec::new();
+            loop {
+                args.push(self.parse_expr());
+                match self.tokens.next() {
+                    Some(Token::Comma) => {},
+                    Some(Token::RightParen) => break,
+                    other => panic!("Expected ',' or ')' but found: {other:#?}"),
+                }
+            }
+            args
+        }
+    }
+
     fn parse_expr(&mut self) -> Expr<'a> {
         let lexpr = match self.tokens.next().unwrap() {
-            Token::Ident(ident) => Expr::VarRef { variable: ident },
+            Token::Ident(ident) => {
+                if matches!(self.tokens.peek(), Some(Token::LeftParen)) {
+                    Expr::FuncCall {
+                        func_name: ident,
+                        args: self.parse_call(),
+                    }
+                } else {
+                    Expr::VarRef { variable: ident }
+                }
+            },
             Token::Integer(i) => Expr::IntLit { value: i.parse().unwrap() },
             _ => panic!(),
         };
@@ -55,6 +86,13 @@ impl<'a, T: Iterator<Item=Token<'a>>> ItemStream<'a, T> {
 
                 Some(Statement::Assignment { variable: ident, value: self.parse_expr(), })
             },
+            Token::Return => {
+                // eat Return
+                self.tokens.next();
+                Some(
+                    Statement::Return { value: self.parse_expr() },
+                )
+            },
             _ => return None,
         };
 
@@ -84,6 +122,43 @@ impl<'a, T: Iterator<Item=Token<'a>>> Iterator for ItemStream<'a, T> {
             Token::Begin => Item::EntryBlock {
                 body: self.parse_block_as_stmt_list(),
             },
+            Token::Func => {
+                let funcname = match self.tokens.next() {
+                    Some(Token::Ident(ident)) => ident,
+                    other => panic!("Unexpected token: {other:?}"),
+                };
+
+                assert!(matches!(self.tokens.next(), Some(Token::LeftParen)), "expected '('");
+                let mut arg_names = Vec::new();
+                loop {
+                    match self.tokens.next().unwrap() {
+                        Token::Ident(ident) => {
+                            arg_names.push(ident);
+                            if let Token::Comma = self.tokens.peek().unwrap() {
+                                self.tokens.next();
+                                assert!(matches!(self.tokens.peek(), Some(Token::Ident(_))), "expected identifier");
+                            }
+                        },
+                        Token::RightParen => break,
+                        other => panic!("unexpected token: {other:?}"),
+                    }
+                }
+                assert!(matches!(self.tokens.next(), Some(Token::LeftBrace)), "Expected '{{'");
+                let mut body = Vec::new();
+                while let Some(stmt) = self.maybe_parse_statement() {
+                    body.push(stmt);
+                }
+                match self.tokens.next() {
+                    Some(Token::RightBrace) => {},
+                    other => panic!("Expected '}}', found: {other:?}"),
+                }
+
+                Item::FuncDef {
+                    name: funcname,
+                    arg_names,
+                    body,
+                }
+            },
             tkn => panic!("Unexpected token {tkn:?}"),
         };
 
@@ -105,6 +180,11 @@ pub enum Expr<'a> {
         lhs: Box<Expr<'a>>,
         rhs: Box<Expr<'a>>,
     },
+
+    FuncCall {
+        func_name: &'a str,
+        args: Vec<Expr<'a>>,
+    },
 }
 
 #[derive(Debug)]
@@ -118,12 +198,22 @@ pub enum Statement<'a> {
         variable: &'a str,
         value: Expr<'a>,
     },
+
+    Return {
+        value: Expr<'a>,
+    },
 }
 
 /// A top-level thing
 #[derive(Debug)]
 pub enum Item<'a> {
     EntryBlock {
+        body: Vec<Statement<'a>>,
+    },
+
+    FuncDef {
+        name: &'a str,
+        arg_names: Vec<&'a str>,
         body: Vec<Statement<'a>>,
     },
 }

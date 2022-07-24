@@ -1,10 +1,11 @@
-func myfunc(a, b, c) {
+func sumthree(a, b, c) {
 	var sum = a + b;
 	return c + sum;
 }
 
 begin {
-	var thingy = 4;
-	thingy = 5;
-	var foo = 6 + thingy;
+	var first = 1;
+	var second = 3;
+	var third = sumthree(1, 1, 0);
+	var foo = print(sumthree(first, second, third));
 }

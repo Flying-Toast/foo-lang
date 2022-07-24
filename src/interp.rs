@@ -94,6 +94,9 @@ impl<'a> Function<'a> {
 
         for stmt in self.body.iter() {
             ctx.eval(stmt);
+            if ctx.func_ret.is_some() {
+                break;
+            }
         }
 
         ctx.func_ret.expect("Function did not return a value")
@@ -101,27 +104,48 @@ impl<'a> Function<'a> {
 }
 
 #[derive(Debug)]
+enum Builtin {
+    Print,
+}
+
+#[derive(Debug)]
+enum FunctionOrBuiltin<'a> {
+    Function(Function<'a>),
+    Builtin(Builtin),
+}
+
+#[derive(Debug)]
 struct GlobalContext<'a> {
-    functions: HashMap<&'a str, Function<'a>>,
+    functions: HashMap<&'a str, FunctionOrBuiltin<'a>>,
 }
 
 impl<'a> GlobalContext<'a> {
     fn new() -> Self {
+        let mut builtins = HashMap::new();
+        builtins.insert("print", FunctionOrBuiltin::Builtin(Builtin::Print));
+
         Self {
-            functions: HashMap::new(),
+            functions: builtins,
         }
     }
 
     fn call_func(&'a self, func_name: &'a str, args: impl ExactSizeIterator<Item=Value>) -> Value {
-        self.functions
-            .get(func_name)
-            .expect(&format!("no func {func_name} is defined"))
-            .call(args, self)
+        let f = self.functions.get(func_name).expect(&format!("no defintion for func {func_name}"));
+        match f {
+            FunctionOrBuiltin::Function(f) => f.call(args, self),
+            FunctionOrBuiltin::Builtin(Builtin::Print) => {
+                for i in args {
+                    println!("{}", i.to_string());
+                }
+
+                Value::Int(0)
+            }
+        }
     }
 
     fn add_func(&mut self, func_name: &'a str, func: Function<'a>) {
         assert!(!self.functions.contains_key(func_name), "func {func_name} already defined");
-        self.functions.insert(func_name, func);
+        self.functions.insert(func_name, FunctionOrBuiltin::Function(func));
     }
 }
 
@@ -169,4 +193,12 @@ impl<'a> Program<'a> {
 #[derive(Debug, Clone)]
 enum Value {
     Int(u32),
+}
+
+impl ToString for Value {
+    fn to_string(&self) -> String {
+        match self {
+            Self::Int(i) => i.to_string(),
+        }
+    }
 }

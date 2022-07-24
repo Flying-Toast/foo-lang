@@ -4,7 +4,6 @@ mod interp;
 
 fn main() {
     let tokens = lex::lex_tokens(include_str!("../example.foo"));
-    for i in ast::parse_items(tokens) {
-        println!("{i:#?}");
-    }
+    let items = ast::parse_items(tokens);
+    interp::Program::from_items(items).execute();
 }

@@ -1,4 +1,4 @@
-use crate::ast::{Expr, Statement};
+use crate::ast::{Expr, Statement, Item};
 use std::collections::HashMap;
 
 #[derive(Debug)]
@@ -7,6 +7,12 @@ struct Context<'a> {
 }
 
 impl<'a> Context<'a> {
+    fn new() -> Self {
+        Self {
+            vars: HashMap::new(),
+        }
+    }
+
     fn get_var_mut(&mut self, varname: &str) -> Option<&mut Value> {
         self.vars.get_mut(varname)
     }
@@ -57,9 +63,35 @@ impl<'a> Context<'a> {
 }
 
 #[derive(Debug)]
-struct Program<'a> {
-    entry_context: Context<'a>,
-    entry: Vec<Expr<'a>>,
+pub struct Program<'a> {
+    begin_block_ctx: Context<'a>,
+    begin_body: Vec<Statement<'a>>,
+}
+
+impl<'a> Program<'a> {
+    pub fn from_items(items: impl Iterator<Item=Item<'a>>) -> Self {
+        let mut begin_body = None;
+
+        for i in items {
+            match i {
+                Item::EntryBlock { body } => {
+                    assert!(begin_body.is_none(), "Multiple begin blocks not allowed");
+                    begin_body = Some(body);
+                },
+            }
+        }
+
+        Self {
+            begin_block_ctx: Context::new(),
+            begin_body: begin_body.unwrap(),
+        }
+    }
+
+    pub fn execute(&'a mut self) {
+        for stmt in self.begin_body.iter() {
+            self.begin_block_ctx.eval(stmt);
+        }
+    }
 }
 
 #[derive(Debug, Clone)]

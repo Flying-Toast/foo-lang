@@ -150,7 +150,7 @@ impl<'a> Program<'a> {
         }
 
         Self {
-            begin_body: begin_body.unwrap(),
+            begin_body: begin_body.expect("Begin block is missing"),
             global,
         }
     }
